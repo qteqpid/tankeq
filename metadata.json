@@ -1,0 +1,5 @@
+{
+  "name": "tankeq",
+  "description": "An interactive N-body gravity simulation engine that allows users to create star systems, simulate celestial mechanics, and use Gemini AI to generate cosmic lore and analyze orbital stability.",
+  "requestFramePermissions": []
+}
