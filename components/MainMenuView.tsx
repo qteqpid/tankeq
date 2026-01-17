@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { ViewMode } from '../types';
 
 interface MainMenuViewProps {
@@ -7,6 +7,8 @@ interface MainMenuViewProps {
 }
 
 const MainMenuView: React.FC<MainMenuViewProps> = ({ onSelectMode }) => {
+  const [showExtraMenu, setShowExtraMenu] = useState(false);
+
   return (
     <div className="w-full h-screen bg-[#050505] flex flex-col items-center justify-center text-white relative overflow-hidden font-sans">
       {/* Background Ambience */}
@@ -14,6 +16,64 @@ const MainMenuView: React.FC<MainMenuViewProps> = ({ onSelectMode }) => {
       <div className="absolute inset-0 opacity-10 pointer-events-none" 
            style={{ backgroundImage: 'radial-gradient(#fff 1px, transparent 0)', backgroundSize: '60px 60px' }}></div>
       
+      {/* Top Right Extra Menu */}
+      <div className="absolute top-8 right-8 z-50 flex flex-col items-end">
+        <button 
+          onClick={() => setShowExtraMenu(!showExtraMenu)}
+          className={`w-12 h-12 rounded-full border border-white/10 flex items-center justify-center backdrop-blur-md transition-all duration-300 shadow-[0_0_30px_rgba(0,0,0,0.5)] z-50 group hover:scale-110 ${showExtraMenu ? 'bg-white/20 text-white rotate-90' : 'bg-white/5 text-gray-400 hover:bg-white/10'}`}
+        >
+          <i className={`fa-solid ${showExtraMenu ? 'fa-xmark' : 'fa-bars'} text-lg`}></i>
+        </button>
+
+        {showExtraMenu && (
+          <div className="absolute top-16 right-0 w-64 flex flex-col gap-2 animate-slide-in-right origin-top-right">
+             <div className="text-[10px] font-black text-gray-500 uppercase tracking-widest text-right mb-2 px-2">Extended Modules</div>
+             
+             {/* Stellar Simulation */}
+             <button 
+                onClick={() => onSelectMode('observation')}
+                className="group flex items-center gap-4 bg-[#0a0a0a]/90 hover:bg-[#111] border border-white/10 p-4 rounded-xl backdrop-blur-xl transition-all hover:border-blue-500/40 hover:translate-x-[-5px]"
+             >
+                <div className="w-10 h-10 rounded-lg bg-blue-500/10 flex items-center justify-center text-blue-400 group-hover:scale-110 transition-transform">
+                   <i className="fa-solid fa-sun"></i>
+                </div>
+                <div className="flex flex-col items-start">
+                   <span className="text-xs font-bold text-gray-200 group-hover:text-blue-200">星球模拟引擎</span>
+                   <span className="text-[8px] text-gray-600 font-mono">STELLAR_CORE</span>
+                </div>
+             </button>
+
+             {/* Metaverse HUB */}
+             <button 
+                onClick={() => onSelectMode('metaverse')}
+                className="group flex items-center gap-4 bg-[#0a0a0a]/90 hover:bg-[#111] border border-white/10 p-4 rounded-xl backdrop-blur-xl transition-all hover:border-purple-500/40 hover:translate-x-[-5px]"
+             >
+                <div className="w-10 h-10 rounded-lg bg-purple-500/10 flex items-center justify-center text-purple-400 group-hover:scale-110 transition-transform">
+                   <i className="fa-solid fa-globe"></i>
+                </div>
+                <div className="flex flex-col items-start">
+                   <span className="text-xs font-bold text-gray-200 group-hover:text-purple-200">元世界 HUB</span>
+                   <span className="text-[8px] text-gray-600 font-mono">DIMENSION_LINK</span>
+                </div>
+             </button>
+
+             {/* Ascension Room */}
+             <button 
+                onClick={() => onSelectMode('ascension')}
+                className="group flex items-center gap-4 bg-[#0a0a0a]/90 hover:bg-[#111] border border-white/10 p-4 rounded-xl backdrop-blur-xl transition-all hover:border-amber-500/40 hover:translate-x-[-5px]"
+             >
+                <div className="w-10 h-10 rounded-lg bg-amber-500/10 flex items-center justify-center text-amber-400 group-hover:scale-110 transition-transform">
+                   <i className="fa-solid fa-star"></i>
+                </div>
+                <div className="flex flex-col items-start">
+                   <span className="text-xs font-bold text-gray-200 group-hover:text-amber-200">升星室</span>
+                   <span className="text-[8px] text-gray-600 font-mono">UPGRADE_ALTAR</span>
+                </div>
+             </button>
+          </div>
+        )}
+      </div>
+
       <div className="z-10 text-center flex flex-col items-center w-full max-w-6xl px-6 h-full justify-center py-12">
         
         <div className="mb-2 px-4 py-1 bg-white/5 border border-white/10 rounded-full text-[10px] font-bold tracking-[0.4em] text-gray-500 uppercase">
@@ -24,119 +84,64 @@ const MainMenuView: React.FC<MainMenuViewProps> = ({ onSelectMode }) => {
           COSMOS ENGINE
         </h1>
         
-        <p className="text-sm md:text-base text-gray-500 max-w-2xl mb-10 font-medium tracking-wide leading-relaxed">
+        <p className="text-sm md:text-base text-gray-500 max-w-2xl mb-12 font-medium tracking-wide leading-relaxed">
           探索星际演化的奥秘，在高度精确的物理场中构建您的宇宙秩序。
           <br/>
           <span className="text-[10px] opacity-40 uppercase tracking-widest">Multi-Engine Celestial Mechanics Suite</span>
         </p>
 
-        <div className="flex flex-col gap-6 w-full animate-fade-in-up">
+        <div className="flex flex-col gap-6 w-full max-w-3xl animate-fade-in-up">
             
             {/* New Game Hero Section */}
             <button 
                 onClick={() => onSelectMode('tank-battle')}
-                className="group relative w-full h-40 bg-gradient-to-r from-amber-900/40 to-black border border-amber-600/30 rounded-2xl flex items-center justify-between px-8 md:px-12 hover:border-amber-500 hover:shadow-[0_0_50px_rgba(245,158,11,0.2)] transition-all overflow-hidden"
+                className="group relative w-full h-48 bg-gradient-to-r from-amber-900/40 to-black border border-amber-600/30 rounded-2xl flex items-center justify-between px-8 md:px-12 hover:border-amber-500 hover:shadow-[0_0_60px_rgba(245,158,11,0.15)] transition-all overflow-hidden"
             >
                 <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10"></div>
                 <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity duration-500">
-                    <i className="fa-solid fa-gamepad fa-8x -rotate-12 text-amber-500"></i>
+                    <i className="fa-solid fa-gamepad fa-10x -rotate-12 text-amber-500"></i>
                 </div>
                 
                 <div className="flex flex-col items-start z-10 text-left">
-                    <div className="flex items-center gap-3 mb-2">
-                        <span className="bg-amber-500 text-black text-[10px] font-black px-2 py-0.5 rounded uppercase tracking-widest">Featured</span>
-                        <h2 className="text-3xl md:text-4xl font-black italic text-white group-hover:text-amber-400 transition-colors uppercase tracking-tighter">坦克大战</h2>
+                    <div className="flex items-center gap-3 mb-3">
+                        <span className="bg-amber-500 text-black text-[10px] font-black px-2 py-0.5 rounded uppercase tracking-widest shadow-lg shadow-amber-500/20">Featured</span>
+                        <h2 className="text-4xl md:text-5xl font-black italic text-white group-hover:text-amber-400 transition-colors uppercase tracking-tighter drop-shadow-lg">坦克大战</h2>
                     </div>
-                    <p className="text-xs text-gray-400 font-mono group-hover:text-gray-300">PROJECT_TITAN // 启动量子装甲战术模拟</p>
+                    <p className="text-sm text-gray-400 font-mono group-hover:text-gray-300 max-w-md leading-relaxed">
+                       PROJECT_TITAN // 启动量子装甲战术模拟。体验 Roguelike 升级系统与高强度弹幕对决。
+                    </p>
                 </div>
 
-                <div className="flex items-center gap-4 z-10">
-                    <span className="hidden md:block text-[10px] font-black text-amber-500 uppercase tracking-[0.3em] group-hover:mr-4 transition-all">Start Operation</span>
-                    <div className="w-12 h-12 bg-amber-500 text-black rounded-full flex items-center justify-center group-hover:scale-110 transition-transform shadow-[0_0_20px_rgba(245,158,11,0.5)]">
-                        <i className="fa-solid fa-play"></i>
+                <div className="flex items-center gap-6 z-10">
+                    <div className="w-16 h-16 bg-amber-500 text-black rounded-full flex items-center justify-center group-hover:scale-110 transition-transform shadow-[0_0_30px_rgba(245,158,11,0.6)]">
+                        <i className="fa-solid fa-play text-2xl"></i>
                     </div>
                 </div>
             </button>
 
-            {/* Tools Grid - Updated to 2x2 for Ascension Room */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 w-full">
-                {/* Mode 1: Stellar Simulation */}
-                <button 
-                    onClick={() => onSelectMode('observation')}
-                    className="group relative flex flex-col items-start p-6 bg-[#0a0a0a] border border-white/5 rounded-2xl text-left hover:border-white/20 transition-all shadow-xl overflow-hidden hover:bg-[#111]"
-                >
-                    <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-20 transition-opacity">
-                    <i className="fa-solid fa-sun fa-5x rotate-12"></i>
-                    </div>
-                    
-                    <div className="w-10 h-10 bg-blue-500/10 rounded-lg flex items-center justify-center mb-4 border border-blue-500/20">
-                    <i className="fa-solid fa-rocket text-blue-400 group-hover:text-blue-300 transition-colors"></i>
-                    </div>
-                    
-                    <h3 className="text-sm font-bold mb-2 group-hover:text-blue-200 transition-colors">星球模拟引擎</h3>
-                    <p className="text-[10px] text-gray-600 leading-relaxed mb-4 line-clamp-2">
-                    构建星系与超新星模拟。
-                    </p>
-                </button>
+            {/* Physics Lab - Main List Item */}
+            <button 
+                onClick={() => onSelectMode('physics')}
+                className="group relative w-full h-24 bg-[#0a0a0a] border border-white/5 rounded-2xl flex items-center justify-between px-8 hover:border-white/20 transition-all shadow-xl overflow-hidden hover:bg-[#111]"
+            >
+                <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
+                    <i className="fa-solid fa-atom fa-6x -rotate-12"></i>
+                </div>
 
-                {/* Mode 2: Metaverse (HUB) */}
-                <button 
-                    onClick={() => onSelectMode('metaverse')}
-                    className="group relative flex flex-col items-start p-6 bg-[#0a0a0a] border border-white/5 rounded-2xl text-left hover:border-purple-500/30 transition-all shadow-xl overflow-hidden hover:bg-[#111]"
-                >
-                    <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-20 transition-opacity text-purple-500">
-                    <i className="fa-solid fa-infinity fa-5x"></i>
+                <div className="flex items-center gap-6 z-10">
+                    <div className="w-12 h-12 bg-gray-500/10 rounded-xl flex items-center justify-center border border-gray-500/20 group-hover:bg-gray-500/20 transition-colors">
+                        <i className="fa-solid fa-microchip text-xl text-gray-400 group-hover:text-gray-200"></i>
                     </div>
-                    
-                    <div className="w-10 h-10 bg-purple-500/10 rounded-lg flex items-center justify-center mb-4 border border-purple-500/20">
-                    <i className="fa-solid fa-globe text-purple-400 group-hover:text-purple-300 transition-colors"></i>
+                    <div className="text-left">
+                        <h3 className="text-lg font-bold text-gray-300 group-hover:text-white transition-colors">物理实验室</h3>
+                        <p className="text-xs text-gray-600 font-mono">PHYS_LAB // Experimental Sandbox Environment</p>
                     </div>
-                    
-                    <h3 className="text-sm font-bold mb-2 group-hover:text-purple-200 transition-colors">元世界 HUB</h3>
-                    <p className="text-[10px] text-gray-600 leading-relaxed mb-4 line-clamp-2">
-                    进入跨维度的宇宙核心。
-                    </p>
-                </button>
+                </div>
+                <div className="text-gray-800 group-hover:text-gray-500 transition-colors z-10">
+                    <i className="fa-solid fa-chevron-right text-xl"></i>
+                </div>
+            </button>
 
-                {/* Mode 3: Physics Lab */}
-                <button 
-                    onClick={() => onSelectMode('physics')}
-                    className="group relative flex flex-col items-start p-6 bg-[#0a0a0a] border border-white/5 rounded-2xl text-left hover:border-white/20 transition-all shadow-xl overflow-hidden hover:bg-[#111]"
-                >
-                    <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-20 transition-opacity">
-                    <i className="fa-solid fa-atom fa-5x -rotate-12"></i>
-                    </div>
-                    
-                    <div className="w-10 h-10 bg-gray-500/10 rounded-lg flex items-center justify-center mb-4 border border-gray-500/20">
-                    <i className="fa-solid fa-microchip text-gray-400 group-hover:text-gray-300 transition-colors"></i>
-                    </div>
-                    
-                    <h3 className="text-sm font-bold mb-2 group-hover:text-gray-200 transition-colors">物理实验室</h3>
-                    <p className="text-[10px] text-gray-600 leading-relaxed mb-4 line-clamp-2">
-                    精密参数控制界面。
-                    </p>
-                </button>
-
-                {/* Mode 4: Ascension Room (NEW) */}
-                <button 
-                    onClick={() => onSelectMode('ascension')}
-                    className="group relative flex flex-col items-start p-6 bg-[#0a0a0a] border border-amber-900/30 rounded-2xl text-left hover:border-amber-500/50 transition-all shadow-xl overflow-hidden hover:bg-[#111]"
-                >
-                    <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-20 transition-opacity">
-                    <i className="fa-solid fa-star fa-5x rotate-45 text-amber-600"></i>
-                    </div>
-                    
-                    <div className="w-10 h-10 bg-amber-900/20 rounded-lg flex items-center justify-center mb-4 border border-amber-500/20">
-                    <i className="fa-solid fa-turn-up text-amber-500 group-hover:text-amber-400 transition-colors"></i>
-                    </div>
-                    
-                    <h3 className="text-sm font-bold mb-2 group-hover:text-amber-200 transition-colors text-amber-500">升星室</h3>
-                    <p className="text-[10px] text-gray-600 leading-relaxed mb-4 line-clamp-2">
-                    消耗星尘强化您的天体。
-                    </p>
-                </button>
-
-            </div>
         </div>
       </div>
       
