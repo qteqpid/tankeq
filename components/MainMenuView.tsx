@@ -26,48 +26,48 @@ const MainMenuView: React.FC<MainMenuViewProps> = ({ onSelectMode }) => {
         </button>
 
         {showExtraMenu && (
-          <div className="absolute top-16 right-0 w-64 flex flex-col gap-2 animate-slide-in-right origin-top-right">
-             <div className="text-[10px] font-black text-gray-500 uppercase tracking-widest text-right mb-2 px-2">Extended Modules</div>
+          <div className="absolute top-16 right-0 w-72 flex flex-col gap-2 animate-slide-in-right origin-top-right bg-black/80 backdrop-blur-xl border border-white/10 p-2 rounded-2xl shadow-2xl">
+             <div className="text-[10px] font-black text-gray-500 uppercase tracking-widest text-right mb-2 px-2 py-1 border-b border-white/5">Extended Modules</div>
              
              {/* Stellar Simulation */}
              <button 
                 onClick={() => onSelectMode('observation')}
-                className="group flex items-center gap-4 bg-[#0a0a0a]/90 hover:bg-[#111] border border-white/10 p-4 rounded-xl backdrop-blur-xl transition-all hover:border-blue-500/40 hover:translate-x-[-5px]"
+                className="group flex items-center gap-4 hover:bg-white/10 p-3 rounded-xl transition-all"
              >
-                <div className="w-10 h-10 rounded-lg bg-blue-500/10 flex items-center justify-center text-blue-400 group-hover:scale-110 transition-transform">
+                <div className="w-10 h-10 rounded-lg bg-blue-500/10 flex items-center justify-center text-blue-400 group-hover:scale-110 transition-transform border border-blue-500/20">
                    <i className="fa-solid fa-sun"></i>
                 </div>
-                <div className="flex flex-col items-start">
-                   <span className="text-xs font-bold text-gray-200 group-hover:text-blue-200">星球模拟引擎</span>
-                   <span className="text-[8px] text-gray-600 font-mono">STELLAR_CORE</span>
+                <div className="flex flex-col items-start text-left">
+                   <span className="text-sm font-bold text-gray-200 group-hover:text-blue-200">星球模拟引擎</span>
+                   <span className="text-[9px] text-gray-600 font-mono">STELLAR_CORE</span>
                 </div>
              </button>
 
              {/* Metaverse HUB */}
              <button 
                 onClick={() => onSelectMode('metaverse')}
-                className="group flex items-center gap-4 bg-[#0a0a0a]/90 hover:bg-[#111] border border-white/10 p-4 rounded-xl backdrop-blur-xl transition-all hover:border-purple-500/40 hover:translate-x-[-5px]"
+                className="group flex items-center gap-4 hover:bg-white/10 p-3 rounded-xl transition-all"
              >
-                <div className="w-10 h-10 rounded-lg bg-purple-500/10 flex items-center justify-center text-purple-400 group-hover:scale-110 transition-transform">
+                <div className="w-10 h-10 rounded-lg bg-purple-500/10 flex items-center justify-center text-purple-400 group-hover:scale-110 transition-transform border border-purple-500/20">
                    <i className="fa-solid fa-globe"></i>
                 </div>
-                <div className="flex flex-col items-start">
-                   <span className="text-xs font-bold text-gray-200 group-hover:text-purple-200">元世界 HUB</span>
-                   <span className="text-[8px] text-gray-600 font-mono">DIMENSION_LINK</span>
+                <div className="flex flex-col items-start text-left">
+                   <span className="text-sm font-bold text-gray-200 group-hover:text-purple-200">元世界 HUB</span>
+                   <span className="text-[9px] text-gray-600 font-mono">DIMENSION_LINK</span>
                 </div>
              </button>
 
              {/* Ascension Room */}
              <button 
                 onClick={() => onSelectMode('ascension')}
-                className="group flex items-center gap-4 bg-[#0a0a0a]/90 hover:bg-[#111] border border-white/10 p-4 rounded-xl backdrop-blur-xl transition-all hover:border-amber-500/40 hover:translate-x-[-5px]"
+                className="group flex items-center gap-4 hover:bg-white/10 p-3 rounded-xl transition-all"
              >
-                <div className="w-10 h-10 rounded-lg bg-amber-500/10 flex items-center justify-center text-amber-400 group-hover:scale-110 transition-transform">
+                <div className="w-10 h-10 rounded-lg bg-amber-500/10 flex items-center justify-center text-amber-400 group-hover:scale-110 transition-transform border border-amber-500/20">
                    <i className="fa-solid fa-star"></i>
                 </div>
-                <div className="flex flex-col items-start">
-                   <span className="text-xs font-bold text-gray-200 group-hover:text-amber-200">升星室</span>
-                   <span className="text-[8px] text-gray-600 font-mono">UPGRADE_ALTAR</span>
+                <div className="flex flex-col items-start text-left">
+                   <span className="text-sm font-bold text-gray-200 group-hover:text-amber-200">升星室</span>
+                   <span className="text-[9px] text-gray-600 font-mono">UPGRADE_ALTAR</span>
                 </div>
              </button>
           </div>
@@ -92,53 +92,55 @@ const MainMenuView: React.FC<MainMenuViewProps> = ({ onSelectMode }) => {
 
         <div className="flex flex-col gap-6 w-full max-w-3xl animate-fade-in-up">
             
-            {/* New Game Hero Section */}
+            {/* Tank Battle Hero Section */}
             <button 
                 onClick={() => onSelectMode('tank-battle')}
-                className="group relative w-full h-48 bg-gradient-to-r from-amber-900/40 to-black border border-amber-600/30 rounded-2xl flex items-center justify-between px-8 md:px-12 hover:border-amber-500 hover:shadow-[0_0_60px_rgba(245,158,11,0.15)] transition-all overflow-hidden"
+                className="group relative w-full h-64 bg-gradient-to-br from-[#1a1a1a] to-black border border-amber-500/30 rounded-3xl flex items-center justify-between px-12 hover:border-amber-500 hover:shadow-[0_0_80px_rgba(245,158,11,0.2)] transition-all overflow-hidden"
             >
                 <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10"></div>
-                <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity duration-500">
-                    <i className="fa-solid fa-gamepad fa-10x -rotate-12 text-amber-500"></i>
+                <div className="absolute -right-20 -top-20 text-amber-900/20 group-hover:text-amber-900/30 transition-colors duration-500 transform rotate-12">
+                    <i className="fa-solid fa-gamepad text-[300px]"></i>
                 </div>
                 
-                <div className="flex flex-col items-start z-10 text-left">
-                    <div className="flex items-center gap-3 mb-3">
-                        <span className="bg-amber-500 text-black text-[10px] font-black px-2 py-0.5 rounded uppercase tracking-widest shadow-lg shadow-amber-500/20">Featured</span>
-                        <h2 className="text-4xl md:text-5xl font-black italic text-white group-hover:text-amber-400 transition-colors uppercase tracking-tighter drop-shadow-lg">坦克大战</h2>
+                <div className="flex flex-col items-start z-10 text-left space-y-4">
+                    <div className="inline-flex items-center gap-2 bg-amber-500/20 border border-amber-500/30 px-3 py-1 rounded-full">
+                        <i className="fa-solid fa-fire text-amber-500 text-xs"></i>
+                        <span className="text-[10px] font-black uppercase tracking-widest text-amber-400">Featured Simulation</span>
                     </div>
-                    <p className="text-sm text-gray-400 font-mono group-hover:text-gray-300 max-w-md leading-relaxed">
-                       PROJECT_TITAN // 启动量子装甲战术模拟。体验 Roguelike 升级系统与高强度弹幕对决。
+                    <div>
+                        <h2 className="text-6xl font-black italic text-white group-hover:text-amber-400 transition-colors uppercase tracking-tighter drop-shadow-lg">坦克大战</h2>
+                        <span className="text-2xl font-thin text-gray-500 tracking-widest uppercase ml-1">Project Titan</span>
+                    </div>
+                    <p className="text-sm text-gray-400 font-mono group-hover:text-gray-300 max-w-md leading-relaxed border-l-2 border-white/10 pl-4">
+                       启动量子装甲战术模拟。体验 Roguelike 升级系统与高强度弹幕对决。
                     </p>
                 </div>
 
-                <div className="flex items-center gap-6 z-10">
-                    <div className="w-16 h-16 bg-amber-500 text-black rounded-full flex items-center justify-center group-hover:scale-110 transition-transform shadow-[0_0_30px_rgba(245,158,11,0.6)]">
-                        <i className="fa-solid fa-play text-2xl"></i>
+                <div className="flex items-center justify-center z-10 group-hover:translate-x-2 transition-transform">
+                    <div className="w-20 h-20 bg-amber-500 text-black rounded-full flex items-center justify-center shadow-[0_0_40px_rgba(245,158,11,0.6)] group-hover:scale-110 transition-transform">
+                        <i className="fa-solid fa-play text-3xl ml-1"></i>
                     </div>
                 </div>
             </button>
 
-            {/* Physics Lab - Main List Item */}
+            {/* Physics Lab Banner */}
             <button 
                 onClick={() => onSelectMode('physics')}
-                className="group relative w-full h-24 bg-[#0a0a0a] border border-white/5 rounded-2xl flex items-center justify-between px-8 hover:border-white/20 transition-all shadow-xl overflow-hidden hover:bg-[#111]"
+                className="group relative w-full h-24 bg-[#0a0a0a] border border-white/10 rounded-2xl flex items-center justify-between px-8 hover:border-cyan-500/50 hover:bg-[#0f0f0f] transition-all overflow-hidden"
             >
-                <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
-                    <i className="fa-solid fa-atom fa-6x -rotate-12"></i>
-                </div>
-
                 <div className="flex items-center gap-6 z-10">
-                    <div className="w-12 h-12 bg-gray-500/10 rounded-xl flex items-center justify-center border border-gray-500/20 group-hover:bg-gray-500/20 transition-colors">
-                        <i className="fa-solid fa-microchip text-xl text-gray-400 group-hover:text-gray-200"></i>
+                    <div className="w-12 h-12 bg-gray-800/50 rounded-xl flex items-center justify-center border border-white/5 group-hover:border-cyan-500/50 group-hover:text-cyan-400 transition-all">
+                        <i className="fa-solid fa-flask text-xl"></i>
                     </div>
                     <div className="text-left">
                         <h3 className="text-lg font-bold text-gray-300 group-hover:text-white transition-colors">物理实验室</h3>
-                        <p className="text-xs text-gray-600 font-mono">PHYS_LAB // Experimental Sandbox Environment</p>
+                        <p className="text-xs text-gray-600 font-mono group-hover:text-cyan-500/70">PHYS_LAB // Experimental Sandbox Environment</p>
                     </div>
                 </div>
-                <div className="text-gray-800 group-hover:text-gray-500 transition-colors z-10">
-                    <i className="fa-solid fa-chevron-right text-xl"></i>
+                
+                <div className="flex items-center gap-3 opacity-30 group-hover:opacity-100 transition-opacity">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-gray-500">Enter Lab</span>
+                    <i className="fa-solid fa-arrow-right text-cyan-500"></i>
                 </div>
             </button>
 
@@ -146,11 +148,14 @@ const MainMenuView: React.FC<MainMenuViewProps> = ({ onSelectMode }) => {
       </div>
       
       {/* Bottom Footer Decoration */}
-      <div className="absolute bottom-8 left-0 right-0 flex justify-center opacity-20 px-8">
+      <div className="absolute bottom-8 left-0 right-0 flex flex-col items-center justify-center opacity-40 gap-2">
         <div className="flex items-center gap-8 text-[9px] font-mono tracking-widest uppercase">
           <div className="flex gap-2"><span>STABILITY</span> <span className="text-green-500">OPTIMAL</span></div>
           <div className="flex gap-2"><span>PHYS_KERNEL</span> <span className="text-blue-500">ACTIVE</span></div>
           <div className="flex gap-2"><span>GEN_AI_BRIDGE</span> <span className="text-purple-500">READY</span></div>
+        </div>
+        <div className="text-[10px] font-black text-gray-500 tracking-widest uppercase hover:text-white transition-colors cursor-default">
+            made by @zgy
         </div>
       </div>
     </div>
