@@ -6,7 +6,7 @@ interface TankBattleViewProps {
   onSokoban: () => void;
 }
 
-type EnemyType = 'RAIDER' | 'INTERCEPTOR' | 'GOLIATH' | 'WRAITH' | 'NEUTRAL_DRONE' | 'GUARDIAN' | 'ALLY_TANK' | 'MYTHIC_BOSS' | 'SPIDER' | 'TURRET';
+type EnemyType = 'RAIDER' | 'INTERCEPTOR' | 'GOLIATH' | 'WRAITH' | 'NEUTRAL_DRONE' | 'GUARDIAN' | 'ALLY_TANK' | 'MYTHIC_BOSS' | 'SPIDER' | 'TURRET' | 'SUMO_BOT';
 type Alignment = 'enemy' | 'neutral' | 'friendly';
 type WeaponType = 'BLASTER' | 'SHOTGUN' | 'SNIPER' | 'PLASMA' | 'FLAMETHROWER' | 'MINIGUN' | 'LASER' | 'MISSILE';
 type BoxType = 'STANDARD' | 'WOODEN' | 'DIAMOND' | 'GOLDEN'; 
@@ -131,6 +131,10 @@ interface Tank extends GameObject {
   maxShield: number;
   lastShieldHit: number; // For regen delay
   
+  // Physics (New)
+  vx: number;
+  vy: number;
+  
   speed: number;
   baseSpeed: number; 
   lastShot: number;
@@ -214,11 +218,14 @@ const ORBIT_RADIUS = 4000;
 const ARENA_RADIUS = 1100;
 const BRIDGE_WIDTH = 280;
 const PLAYER_BASE_HP = 800; // Base, scales with upgrades
-const SAVE_KEY = 'tank_battle_save_v9_stack'; 
+const SAVE_KEY = 'tank_battle_save_v10_sumo'; 
 const GRID_SIZE = 120;
 const MATCH_DURATION = 180 * 1000; // 3 minutes
+const HELL_ARENA_ID = 9;
+const SUMO_ARENA_ID = 20;
+const SUMO_ARENA_MAX_RADIUS = 1500;
 
-// Outer Ring + Center Hub
+// Outer Ring + Center Hub + HELL + SUMO
 const ARENAS = [
     ...Array.from({ length: OUTER_COUNT }).map((_, i) => {
         const angle = (i / OUTER_COUNT) * Math.PI * 2;
@@ -247,13 +254,32 @@ const ARENAS = [
         gridColor: '#6366f1',
         name: 'CORE_ARENA [PvP]',
         difficulty: 5
+    },
+    {
+        id: HELL_ARENA_ID, // 9 - Monster Hell
+        x: 0,
+        y: -ORBIT_RADIUS * 2.2, // Far above
+        color: '#2b0000', // Very Dark Red
+        gridColor: '#ef4444',
+        name: 'MONSTER_HELL [☠️]',
+        difficulty: 10
+    },
+    {
+        id: SUMO_ARENA_ID, // 20 - Sumo/Knockback Arena
+        x: ORBIT_RADIUS * 2.0, // Far right
+        y: 0, 
+        color: '#000000', // Void like
+        gridColor: '#2563eb', // Blue Grid
+        name: 'KNOCKBACK_ARENA [ROYALE]',
+        difficulty: 6
     }
 ];
 
 // Define connections
 const BRIDGES: [number, number][] = [
     [0, 1], [1, 2], [2, 3], [3, 4], [4, 5], [5, 6], [6, 7], [7, 0],
-    [0, 8], [2, 8], [4, 8], [6, 8] 
+    [0, 8], [2, 8], [4, 8], [6, 8],
+    [6, 9] // Connect Top Arena (6) to Hell (9)
 ];
 
 const TankBattleView: React.FC<TankBattleViewProps> = ({ onBack, onSokoban }) => {
@@ -295,6 +321,13 @@ const TankBattleView: React.FC<TankBattleViewProps> = ({ onBack, onSokoban }) =>
       result: 'NONE' as 'NONE' | 'VICTORY' | 'DEFEAT'
   });
 
+  const [sumoUI, setSumoUI] = useState({
+      active: false,
+      playersAlive: 0,
+      totalPlayers: 32,
+      result: 'NONE' as 'NONE' | 'VICTORY' | 'ELIMINATED'
+  });
+
   const keys = useRef<{ [key: string]: boolean }>({});
   const mousePos = useRef({ x: 0, y: 0 });
   const lastMythicSpawn = useRef(Date.now()); // Timer for Mythic spawn
@@ -305,6 +338,7 @@ const TankBattleView: React.FC<TankBattleViewProps> = ({ onBack, onSokoban }) =>
       x: ARENAS[0].x, y: ARENAS[0].y, 
       width: 44, height: 44,
       rotation: 0,
+      vx: 0, vy: 0,
       type: 'player' as const,
       alignment: 'friendly' as Alignment,
       enemyType: 'RAIDER',
@@ -333,6 +367,13 @@ const TankBattleView: React.FC<TankBattleViewProps> = ({ onBack, onSokoban }) =>
         timeLeft: MATCH_DURATION,
         lastTick: Date.now(), // Initialize with current time
         isOver: false
+    },
+    sumoMatch: {
+        active: false,
+        startTime: 0,
+        currentRadius: SUMO_ARENA_MAX_RADIUS,
+        playersAlive: 32,
+        result: 'NONE' as 'NONE' | 'VICTORY' | 'ELIMINATED'
     },
     globalEffect: {
         slowEnemiesUntil: 0
@@ -497,7 +538,8 @@ const TankBattleView: React.FC<TankBattleViewProps> = ({ onBack, onSokoban }) =>
             shield: data.player.shield || 0,
             maxShield: data.player.maxShield || 0,
             lastShieldHit: 0,
-            poisonStacks: 0
+            poisonStacks: 0,
+            vx: 0, vy: 0 // Reset physics
         };
         
         // Fix potential missing counts in old saves
@@ -507,7 +549,7 @@ const TankBattleView: React.FC<TankBattleViewProps> = ({ onBack, onSokoban }) =>
         if (!loadedPlayer.hp || loadedPlayer.hp <= 0) loadedPlayer.hp = loadedPlayer.maxHp;
 
         state.current.player = loadedPlayer;
-        state.current.npcs = data.npcs.map((n: any) => ({...n, buffs: { overdriveUntil: 0, blitzUntil: 0, invincibleUntil: 0 }, baseSpeed: n.speed, shield: 0, maxShield: 0, poisonStacks: 0}));
+        state.current.npcs = data.npcs.map((n: any) => ({...n, buffs: { overdriveUntil: 0, blitzUntil: 0, invincibleUntil: 0 }, baseSpeed: n.speed, shield: 0, maxShield: 0, poisonStacks: 0, vx: 0, vy: 0}));
         state.current.bullets = data.bullets || [];
         state.current.obstacles = data.obstacles || [];
         state.current.particles = data.particles || [];
@@ -550,6 +592,11 @@ const TankBattleView: React.FC<TankBattleViewProps> = ({ onBack, onSokoban }) =>
 
   const getRandomPositionInArena = (arenaIndex: number) => {
     const arena = ARENAS[arenaIndex];
+    if (arenaIndex === SUMO_ARENA_ID) {
+        const r = Math.random() * (SUMO_ARENA_MAX_RADIUS - 100);
+        const theta = Math.random() * Math.PI * 2;
+        return { x: arena.x + r * Math.cos(theta), y: arena.y + r * Math.sin(theta) };
+    }
     const r = Math.random() * (ARENA_RADIUS - 150);
     const theta = Math.random() * Math.PI * 2;
     return { 
@@ -580,6 +627,8 @@ const TankBattleView: React.FC<TankBattleViewProps> = ({ onBack, onSokoban }) =>
     
     state.current.player.x = ARENAS[0].x;
     state.current.player.y = ARENAS[0].y;
+    state.current.player.vx = 0;
+    state.current.player.vy = 0;
     state.current.player.buffs = { overdriveUntil: 0, blitzUntil: 0, invincibleUntil: 0 };
     
     if (clearSave) {
@@ -629,7 +678,10 @@ const TankBattleView: React.FC<TankBattleViewProps> = ({ onBack, onSokoban }) =>
             return;
         }
 
+        if (arena.id === SUMO_ARENA_ID) return; // No obstacles in Sumo Arena
+
         const isCore = arena.id === OUTER_COUNT;
+        const isHell = arena.id === HELL_ARENA_ID;
         
         if (isCore) {
             const gapSize = 300;
@@ -650,6 +702,25 @@ const TankBattleView: React.FC<TankBattleViewProps> = ({ onBack, onSokoban }) =>
             state.current.obstacles.push({ x: arena.x + 400, y: arena.y - 400, width: 100, height: 100, rotation: 0, type: 'soft' });
             state.current.obstacles.push({ x: arena.x + 400, y: arena.y + 400, width: 100, height: 100, rotation: 0, type: 'soft' });
 
+        } else if (isHell) {
+             const size = 2000;
+             const wallThick = 80;
+             const gap = 400; // Entrance gap
+
+             // Top Wall (Closed)
+             state.current.obstacles.push({ x: arena.x, y: arena.y - size/2, width: size, height: wallThick, rotation: 0, type: 'hard' }); 
+             // Bottom Wall (Split for entrance)
+             state.current.obstacles.push({ x: arena.x - (size/4 + gap/4), y: arena.y + size/2, width: size/2 - gap/2, height: wallThick, rotation: 0, type: 'hard' });
+             state.current.obstacles.push({ x: arena.x + (size/4 + gap/4), y: arena.y + size/2, width: size/2 - gap/2, height: wallThick, rotation: 0, type: 'hard' });
+
+             // Side Walls
+             state.current.obstacles.push({ x: arena.x - size/2, y: arena.y, width: wallThick, height: size, rotation: 0, type: 'hard' });
+             state.current.obstacles.push({ x: arena.x + size/2, y: arena.y, width: wallThick, height: size, rotation: 0, type: 'hard' });
+             
+             for(let k=0; k<12; k++) {
+                 const p = getRandomPositionInArena(arena.id);
+                 state.current.obstacles.push({ x: p.x, y: p.y, width: 100, height: 100, rotation: Math.random(), type: 'hard' });
+             }
         } else {
             const count = 12 + (arena.id % 3) * 5; 
             for (let i = 0; i < count; i++) {
@@ -668,13 +739,57 @@ const TankBattleView: React.FC<TankBattleViewProps> = ({ onBack, onSokoban }) =>
 
     ARENAS.forEach((arena) => {
         if (arena.id === 0) return;
+        if (arena.id === SUMO_ARENA_ID) return; // Sumo has specific start logic
+
         if (arena.id === OUTER_COUNT) {
             spawnArenaTeams(arena.id);
+        } else if (arena.id === HELL_ARENA_ID) {
+            for(let i=0; i<5; i++) {
+                const angle = (i / 5) * Math.PI * 2;
+                spawnSpecificNPC('enemy', arena.id, Math.cos(angle)*800, Math.sin(angle)*800, 'MYTHIC_BOSS');
+            }
         } else {
             const count = 3 + arena.difficulty;
             spawnNPCsForArena(arena.id, count);
         }
     });
+  };
+
+  const startSumoMatch = () => {
+    const arena = ARENAS.find(a => a.id === SUMO_ARENA_ID)!;
+    // Clear existing sumo bots if any
+    state.current.npcs = state.current.npcs.filter(n => n.currentArenaIndex !== SUMO_ARENA_ID);
+    
+    // Reset Sumo State
+    state.current.sumoMatch = {
+        active: true,
+        startTime: Date.now(),
+        currentRadius: SUMO_ARENA_MAX_RADIUS,
+        playersAlive: 32,
+        result: 'NONE'
+    };
+    setSumoUI({ active: true, playersAlive: 32, totalPlayers: 32, result: 'NONE' });
+
+    // Spawn 31 Bots
+    for(let i=0; i<31; i++) {
+        const r = Math.random() * (SUMO_ARENA_MAX_RADIUS - 200);
+        const theta = Math.random() * Math.PI * 2;
+        const x = arena.x + r * Math.cos(theta);
+        const y = arena.y + r * Math.sin(theta);
+        
+        spawnSpecificNPC('enemy', SUMO_ARENA_ID, x - arena.x, y - arena.y, 'SUMO_BOT');
+    }
+    
+    // Teleport Player
+    state.current.player.x = arena.x;
+    state.current.player.y = arena.y;
+    state.current.player.vx = 0;
+    state.current.player.vy = 0;
+    currentArenaRef.current = SUMO_ARENA_ID;
+    setCurrentArena(SUMO_ARENA_ID);
+    
+    createFloatingText(arena.x, arena.y - 200, "BATTLE ROYALE START!", "#00f2ff");
+    createFloatingText(arena.x, arena.y - 150, "SURVIVE UNTIL TOP 16", "#ffffff");
   };
 
   const spawnArenaTeams = (arenaId: number) => {
@@ -696,7 +811,7 @@ const TankBattleView: React.FC<TankBattleViewProps> = ({ onBack, onSokoban }) =>
   };
 
   const spawnSpecificNPC = (alignment: Alignment, arenaId: number, offsetX: number, offsetY: number, type: EnemyType) => {
-      const arena = ARENAS[arenaId];
+      const arena = ARENAS.find(a => a.id === arenaId)!;
       const weps: WeaponType[] = ['BLASTER', 'SHOTGUN', 'MINIGUN', 'MISSILE', 'PLASMA', 'LASER'];
       let weapon = weps[Math.floor(Math.random() * weps.length)];
       
@@ -711,6 +826,15 @@ const TankBattleView: React.FC<TankBattleViewProps> = ({ onBack, onSokoban }) =>
               case 'TURRET': 
                   config = { hp: 600, speed: 0, size: 50, color: '#6366f1', score: 800, damage: 30 }; 
                   weapon = Math.random() > 0.5 ? 'SNIPER' : 'MISSILE';
+                  break;
+              case 'MYTHIC_BOSS': 
+                  config = { hp: 50000, speed: 1.5, size: 280, color: '#ffd700', score: 50000, damage: 70 }; 
+                  break;
+              case 'SUMO_BOT':
+                  // Random vivid color for each bot
+                  const hue = Math.floor(Math.random() * 360);
+                  config = { hp: 2000, speed: 4.5, size: 50, color: `hsl(${hue}, 70%, 60%)`, score: 1000, damage: 0 };
+                  weapon = 'SHOTGUN'; // High spread for knockback
                   break;
               default: config = { hp: 150, speed: 4.5, size: 40, color: '#ef4444', score: 300, damage: 10 };
           }
@@ -730,12 +854,13 @@ const TankBattleView: React.FC<TankBattleViewProps> = ({ onBack, onSokoban }) =>
         currentArenaIndex: arenaId,
         currentWeapon: weapon,
         unlockedWeapons: [weapon],
-        inventory: [], equipment: [], coins: 0, poisonStacks: 0, lastPoisonTick: 0
+        inventory: [], equipment: [], coins: 0, poisonStacks: 0, lastPoisonTick: 0,
+        vx: 0, vy: 0
       });
   };
 
   const spawnMythicBoss = () => {
-      const validArenas = ARENAS.filter(a => a.id !== 0);
+      const validArenas = ARENAS.filter(a => a.id !== 0 && a.id !== HELL_ARENA_ID && a.id !== SUMO_ARENA_ID);
       const arena = validArenas[Math.floor(Math.random() * validArenas.length)];
       
       const pos = getRandomPositionInArena(arena.id);
@@ -760,7 +885,8 @@ const TankBattleView: React.FC<TankBattleViewProps> = ({ onBack, onSokoban }) =>
           currentArenaIndex: arena.id,
           currentWeapon: 'BLASTER', 
           unlockedWeapons: ['BLASTER'],
-          inventory: [], equipment: [], coins: 0, poisonStacks: 0, lastPoisonTick: 0
+          inventory: [], equipment: [], coins: 0, poisonStacks: 0, lastPoisonTick: 0,
+          vx: 0, vy: 0
       });
       
       createFloatingText(pos.x, pos.y - 200, "WARNING: MYTHIC CLASS DETECTED", "#ffd700");
@@ -830,12 +956,13 @@ const TankBattleView: React.FC<TankBattleViewProps> = ({ onBack, onSokoban }) =>
       type: 'npc', hp: config.hp, maxHp: config.hp,
       shield: 0, maxShield: 0, lastShieldHit: 0,
       speed: config.speed, baseSpeed: config.speed, lastShot: 0,
-      color: config.color, scoreValue: config.score, isAggressive: false,
+      color: config.color, scoreValue: config.score, isAggressive: true,
       buffs: { overdriveUntil: 0, blitzUntil: 0, invincibleUntil: 0 },
       currentArenaIndex: arenaId,
       currentWeapon: weapon,
       unlockedWeapons: [weapon],
-      inventory: [], equipment: [], coins: 0, poisonStacks: 0, lastPoisonTick: 0
+      inventory: [], equipment: [], coins: 0, poisonStacks: 0, lastPoisonTick: 0,
+      vx: 0, vy: 0
     });
   };
 
@@ -981,10 +1108,22 @@ const TankBattleView: React.FC<TankBattleViewProps> = ({ onBack, onSokoban }) =>
     let animationId: number;
 
     const enforceMapBoundaries = (obj: any) => {
+        // Special logic for Sumo Arena - Falling off
+        if (currentArenaRef.current === SUMO_ARENA_ID) {
+            const arena = ARENAS.find(a => a.id === SUMO_ARENA_ID)!;
+            const dist = Math.hypot(obj.x - arena.x, obj.y - arena.y);
+            // Current Safe Zone logic is handled in Update for death
+            // Here we just identify "Inside"
+            return { inside: true, arenaId: SUMO_ARENA_ID };
+        }
+
         let nearestArena = ARENAS[0];
         let minDist = Infinity;
         
         for (const arena of ARENAS) {
+            // Skip Sumo arena from general magnet logic, it's isolated
+            if (arena.id === SUMO_ARENA_ID) continue;
+
             const d = Math.hypot(obj.x - arena.x, obj.y - arena.y);
             if (d < minDist) {
                 minDist = d;
@@ -1031,6 +1170,19 @@ const TankBattleView: React.FC<TankBattleViewProps> = ({ onBack, onSokoban }) =>
       const now = Date.now();
       const { w, h } = state.current.viewport;
 
+      // Sumo Portal Logic
+      if (currentArenaRef.current === 0) {
+          const arena0 = ARENAS[0];
+          const portalX = arena0.x + 800;
+          const portalY = arena0.y;
+          const distToPortal = Math.hypot(p.x - portalX, p.y - portalY);
+          
+          if (distToPortal < 80) {
+              startSumoMatch();
+              return; // End frame early to prevent glitch
+          }
+      }
+
       const boundaryCheck = enforceMapBoundaries(p);
       
       if (boundaryCheck.arenaId !== -1) {
@@ -1049,6 +1201,42 @@ const TankBattleView: React.FC<TankBattleViewProps> = ({ onBack, onSokoban }) =>
       if (inAsc !== canEnterAscensionRef.current) {
           canEnterAscensionRef.current = inAsc;
           setCanEnterAscension(inAsc);
+      }
+
+      // Sumo Match Logic
+      if (currentArenaRef.current === SUMO_ARENA_ID) {
+          const sm = state.current.sumoMatch;
+          if (sm.active && sm.result === 'NONE') {
+              // Shrink Ring
+              if (sm.currentRadius > 300) {
+                  sm.currentRadius -= 0.5; // Shrink speed
+              }
+
+              // Count Alive
+              const botsAlive = state.current.npcs.filter(n => n.currentArenaIndex === SUMO_ARENA_ID).length;
+              const totalAlive = botsAlive + (p.hp > 0 ? 1 : 0);
+              
+              if (sm.playersAlive !== totalAlive) {
+                  sm.playersAlive = totalAlive;
+                  setSumoUI(prev => ({...prev, playersAlive: totalAlive}));
+              }
+
+              if (totalAlive <= 16 && p.hp > 0) {
+                  sm.result = 'VICTORY';
+                  setSumoUI(prev => ({...prev, result: 'VICTORY'}));
+                  createFloatingText(p.x, p.y - 100, "QUALIFIED! TOP 16!", "#22c55e");
+                  setTimeout(() => {
+                    // Teleport back
+                    state.current.player.x = ARENAS[0].x;
+                    state.current.player.y = ARENAS[0].y;
+                    currentArenaRef.current = 0;
+                    setCurrentArena(0);
+                    // Reward
+                    p.coins += 5000;
+                    setPlayerUI(u => ({...u, coins: p.coins}));
+                  }, 4000);
+              }
+          }
       }
 
       if (now - lastMythicSpawn.current > 300000) { 
@@ -1122,6 +1310,13 @@ const TankBattleView: React.FC<TankBattleViewProps> = ({ onBack, onSokoban }) =>
       const dy = mousePos.current.y - h / 2;
       p.rotation = Math.atan2(dy, dx);
 
+      // Physics Friction
+      p.x += p.vx;
+      p.y += p.vy;
+      p.vx *= 0.9;
+      p.vy *= 0.9;
+
+      // Player Movement
       const isMoving = keys.current['KeyW'] || keys.current['ArrowUp'] || keys.current['MouseDown'];
       if (isMoving) {
         const prevX = p.x; const prevY = p.y;
@@ -1130,6 +1325,19 @@ const TankBattleView: React.FC<TankBattleViewProps> = ({ onBack, onSokoban }) =>
         
         if (checkCollision(p)) { p.x = prevX; p.y = prevY; }
         enforceMapBoundaries(p);
+      }
+
+      // Check Fall Death in Sumo
+      if (currentArenaRef.current === SUMO_ARENA_ID) {
+          const arena = ARENAS.find(a => a.id === SUMO_ARENA_ID)!;
+          const dist = Math.hypot(p.x - arena.x, p.y - arena.y);
+          // Safe zone check (Falling)
+          if (dist > state.current.sumoMatch.currentRadius) {
+              p.hp = 0;
+              setGameOver(true);
+              setSumoUI(prev => ({...prev, result: 'ELIMINATED'}));
+              createDeathEffect(p.x, p.y, '#00f2ff', p.width);
+          }
       }
 
       if ((keys.current['Space'] || keys.current['KeyJ']) && Date.now() - p.lastShot > fireRateDelay) {
@@ -1322,9 +1530,34 @@ const TankBattleView: React.FC<TankBattleViewProps> = ({ onBack, onSokoban }) =>
 
         for (let i = 0; i < state.current.npcs.length; i++) {
           const npc = state.current.npcs[i];
-          if (b.ownerAlignment !== npc.alignment && isRectCollision(b, npc)) {
+          
+          const isSumo = currentArenaRef.current === SUMO_ARENA_ID;
+          const isSelf = b.ownerId === npc.id;
+          const isFriendlyFire = b.ownerAlignment === npc.alignment;
+          
+          let canHit = false;
+          // In Sumo: Hit anyone that isn't self (Friendly Fire enabled between bots, Bot vs Player, Player vs Bot)
+          if (isSumo) {
+              canHit = !isSelf;
+          } else {
+              // Normal: Hit enemies
+              canHit = !isSelf && !isFriendlyFire;
+          }
+
+          if (canHit && isRectCollision(b, npc)) {
             if (b.piercing && b.hitList?.includes(npc.id)) continue;
             
+            // KNOCKBACK MODE OVERRIDE
+            if (currentArenaRef.current === SUMO_ARENA_ID) {
+                // Apply physics impulse
+                const impulse = 15; // Knockback force
+                npc.vx += Math.cos(b.rotation) * impulse;
+                npc.vy += Math.sin(b.rotation) * impulse;
+                createHitEffect(b.x, b.y, '#fff');
+                return false; // Bullet dies, no damage
+            }
+
+            // Normal Damage
             if (npc.alignment === 'neutral') npc.isAggressive = true;
             npc.hp -= b.damage;
             
@@ -1404,7 +1637,12 @@ const TankBattleView: React.FC<TankBattleViewProps> = ({ onBack, onSokoban }) =>
                       if (npc.enemyType === 'GOLIATH') spawnSpecificNPC('enemy', arenaId, 900, 0, 'GOLIATH');
                       else spawnSpecificNPC(npc.alignment, arenaId, npc.alignment === 'friendly' ? -800 : 800, (Math.random()-0.5)*1000, npc.enemyType);
                   }, 5000);
-              } else if (npc.enemyType !== 'MYTHIC_BOSS') {
+              } else if (arenaId === HELL_ARENA_ID) {
+                  setTimeout(() => {
+                      spawnSpecificNPC('enemy', arenaId, (Math.random()-0.5)*1000, (Math.random()-0.5)*1000, 'MYTHIC_BOSS');
+                  }, 8000); // 8s respawn for Hell Bosses
+              } else if (arenaId !== SUMO_ARENA_ID && npc.enemyType !== 'MYTHIC_BOSS') {
+                  // Only respawn standard mobs outside of Sumo/Hell Boss
                   setTimeout(() => spawnNPC(npc.alignment, arenaId), 3000);
               }
             }
@@ -1425,6 +1663,15 @@ const TankBattleView: React.FC<TankBattleViewProps> = ({ onBack, onSokoban }) =>
         }
 
         if (b.ownerAlignment !== 'friendly' && isRectCollision(b, p)) {
+          // KNOCKBACK MODE OVERRIDE FOR PLAYER
+          if (currentArenaRef.current === SUMO_ARENA_ID) {
+              const impulse = 15;
+              p.vx += Math.cos(b.rotation) * impulse;
+              p.vy += Math.sin(b.rotation) * impulse;
+              createHitEffect(b.x, b.y, '#00f2ff');
+              return false;
+          }
+
           if (now < p.buffs.invincibleUntil) {
              createHitEffect(b.x, b.y, '#00f2ff'); 
              return false;
@@ -1468,7 +1715,26 @@ const TankBattleView: React.FC<TankBattleViewProps> = ({ onBack, onSokoban }) =>
         return true;
       });
 
-      state.current.npcs.forEach(n => {
+      state.current.npcs.forEach((n, idx) => {
+        // Friction for all NPCs
+        n.x += n.vx;
+        n.y += n.vy;
+        n.vx *= 0.9;
+        n.vy *= 0.9;
+
+        // Sumo Death Logic for NPCs
+        if (n.currentArenaIndex === SUMO_ARENA_ID) {
+            const arena = ARENAS.find(a => a.id === SUMO_ARENA_ID)!;
+            const dist = Math.hypot(n.x - arena.x, n.y - arena.y);
+            if (dist > state.current.sumoMatch.currentRadius) {
+                // Eliminate Bot
+                createDeathEffect(n.x, n.y, n.color, n.width);
+                state.current.npcs.splice(idx, 1);
+                createFloatingText(n.x, n.y, "ELIMINATED", "#ef4444");
+                return;
+            }
+        }
+
         if (n.poisonStacks > 0 && now - n.lastPoisonTick > 500) {
             n.hp -= n.poisonStacks;
             n.lastPoisonTick = now;
@@ -1483,10 +1749,34 @@ const TankBattleView: React.FC<TankBattleViewProps> = ({ onBack, onSokoban }) =>
         
         if (npcInArena && !playerInArena) return; 
 
+        // AI Targeting Logic
         const distToPlayer = Math.hypot(p.x - n.x, p.y - n.y);
         let target: any = null;
         
-        if (n.alignment === 'enemy') {
+        if (n.currentArenaIndex === SUMO_ARENA_ID) {
+            // Sumo AI: Target closest entity (player or other npc) to stay alive
+            // Randomly fight each other
+            let minD = Infinity;
+            let closest = null;
+            
+            // Check Player
+            if (p.hp > 0) {
+                const d = Math.hypot(p.x - n.x, p.y - n.y);
+                if (d < minD) { minD = d; closest = p; }
+            }
+            
+            // Check other NPCs
+            state.current.npcs.forEach(other => {
+                if (other.id !== n.id && other.currentArenaIndex === SUMO_ARENA_ID) {
+                    const d = Math.hypot(other.x - n.x, other.y - n.y);
+                    if (d < minD) {
+                        minD = d;
+                        closest = other;
+                    }
+                }
+            });
+            target = closest;
+        } else if (n.alignment === 'enemy') {
             const nearestAlly = state.current.npcs.find(other => {
                 if (n.currentArenaIndex === OUTER_COUNT && other.currentArenaIndex !== OUTER_COUNT) return false;
                 if (n.currentArenaIndex !== OUTER_COUNT && other.currentArenaIndex === OUTER_COUNT) return false;
@@ -1561,7 +1851,7 @@ const TankBattleView: React.FC<TankBattleViewProps> = ({ onBack, onSokoban }) =>
             const bulletSpeed = isMythic ? npcWep.speed * 0.1 : npcWep.speed;
             const bulletSize = isMythic ? 56 : 8; 
             const bulletDamage = isMythic ? 70 : npcWep.damage; 
-            const bulletColor = isMythic ? '#ffd700' : (n.alignment === 'friendly' ? '#22c55e' : (n.enemyType === 'GOLIATH' ? '#d946ef' : '#f43f5e'));
+            const bulletColor = isMythic ? '#ffd700' : (n.alignment === 'friendly' ? '#22c55e' : (n.enemyType === 'GOLIATH' ? '#d946ef' : (n.enemyType === 'SUMO_BOT' ? n.color : '#f43f5e')));
             
             for (let i = 0; i < count; i++) {
                 const angleOffset = spread > 0 ? (i - (count - 1) / 2) * spread : 0;
@@ -1631,7 +1921,7 @@ const TankBattleView: React.FC<TankBattleViewProps> = ({ onBack, onSokoban }) =>
         const height = minimapRef.current!.height;
         const centerX = width / 2;
         const centerY = height / 2;
-        const mapScale = (width / 2) / (ORBIT_RADIUS + ARENA_RADIUS + 500);
+        const mapScale = (width / 2) / (ORBIT_RADIUS * 2.5); // Zoom out to see sumo arena
 
         ctxM.clearRect(0, 0, width, height);
 
@@ -1682,7 +1972,9 @@ const TankBattleView: React.FC<TankBattleViewProps> = ({ onBack, onSokoban }) =>
                  ctxM.beginPath(); ctxM.arc(x, y, 6, 0, Math.PI*2); ctxM.fill();
                  ctxM.shadowBlur = 0;
              } else {
-                 ctxM.fillStyle = npc.alignment === 'enemy' ? '#ef4444' : npc.alignment === 'friendly' ? '#22c55e' : '#94a3b8';
+                 // In Sumo, show random colors
+                 const color = npc.enemyType === 'SUMO_BOT' ? npc.color : (npc.alignment === 'enemy' ? '#ef4444' : npc.alignment === 'friendly' ? '#22c55e' : '#94a3b8');
+                 ctxM.fillStyle = color;
                  ctxM.beginPath(); ctxM.arc(x, y, 1.5, 0, Math.PI*2); ctxM.fill();
              }
         });
@@ -1708,6 +2000,34 @@ const TankBattleView: React.FC<TankBattleViewProps> = ({ onBack, onSokoban }) =>
       const viewT = p.y - h/2 - 200;
       const viewR = p.x + w/2 + 200;
       const viewB = p.y + h/2 + 200;
+
+      // Draw Sumo Portal
+      if (currentArenaRef.current === 0) {
+          const a0 = ARENAS[0];
+          const px = a0.x + 800;
+          const py = a0.y;
+          
+          ctx.save();
+          ctx.translate(px, py);
+          ctx.rotate(now * 0.005);
+          ctx.strokeStyle = '#00f2ff';
+          ctx.lineWidth = 4;
+          ctx.setLineDash([10, 5]);
+          ctx.beginPath(); ctx.arc(0, 0, 60, 0, Math.PI*2); ctx.stroke();
+          
+          ctx.rotate(-now * 0.01);
+          ctx.strokeStyle = '#2563eb';
+          ctx.beginPath(); ctx.arc(0, 0, 40, 0, Math.PI*2); ctx.stroke();
+          
+          ctx.fillStyle = 'rgba(0, 242, 255, 0.2)';
+          ctx.fill();
+          ctx.restore();
+          
+          ctx.fillStyle = '#fff';
+          ctx.font = 'bold 12px monospace';
+          ctx.textAlign = 'center';
+          ctx.fillText("BATTLE ROYAL", px, py - 80);
+      }
 
       ctx.lineWidth = BRIDGE_WIDTH;
       ctx.lineCap = 'butt';
@@ -1739,20 +2059,22 @@ const TankBattleView: React.FC<TankBattleViewProps> = ({ onBack, onSokoban }) =>
       });
 
       ARENAS.forEach(arena => {
-          if (arena.x + ARENA_RADIUS < viewL || arena.x - ARENA_RADIUS > viewR || 
-              arena.y + ARENA_RADIUS < viewT || arena.y - ARENA_RADIUS > viewB) return;
+          const radius = arena.id === SUMO_ARENA_ID ? SUMO_ARENA_MAX_RADIUS : ARENA_RADIUS;
 
-          const g = ctx.createRadialGradient(arena.x, arena.y, 0, arena.x, arena.y, ARENA_RADIUS);
+          if (arena.x + radius < viewL || arena.x - radius > viewR || 
+              arena.y + radius < viewT || arena.y - radius > viewB) return;
+
+          const g = ctx.createRadialGradient(arena.x, arena.y, 0, arena.x, arena.y, radius);
           g.addColorStop(0, arena.color);
           g.addColorStop(0.8, arena.color);
           g.addColorStop(1, '#0f172a');
           ctx.fillStyle = g;
-          ctx.beginPath(); ctx.arc(arena.x, arena.y, ARENA_RADIUS, 0, Math.PI*2); ctx.fill();
+          ctx.beginPath(); ctx.arc(arena.x, arena.y, radius, 0, Math.PI*2); ctx.fill();
 
           ctx.strokeStyle = arena.gridColor; ctx.lineWidth = 2;
           ctx.beginPath();
           const step = GRID_SIZE;
-          const r = ARENA_RADIUS;
+          const r = radius;
           const startX = Math.floor((arena.x - r) / step) * step;
           const endX = Math.floor((arena.x + r) / step) * step;
           const startY = Math.floor((arena.y - r) / step) * step;
@@ -1770,12 +2092,28 @@ const TankBattleView: React.FC<TankBattleViewProps> = ({ onBack, onSokoban }) =>
           ctx.stroke();
           ctx.restore();
 
-          ctx.strokeStyle = arena.id === currentArena ? '#00f2ff' : '#475569';
-          ctx.lineWidth = 10;
-          ctx.shadowColor = arena.id === currentArena ? '#00f2ff' : 'transparent';
-          ctx.shadowBlur = arena.id === currentArena ? 20 : 0;
-          ctx.beginPath(); ctx.arc(arena.x, arena.y, ARENA_RADIUS, 0, Math.PI*2); ctx.stroke();
-          ctx.shadowBlur = 0;
+          if (arena.id === SUMO_ARENA_ID) {
+              // Draw Safe Zone for Sumo
+              const safeR = state.current.sumoMatch.currentRadius;
+              ctx.strokeStyle = '#ef4444'; ctx.lineWidth = 10;
+              ctx.setLineDash([20, 20]);
+              ctx.beginPath(); ctx.arc(arena.x, arena.y, safeR, 0, Math.PI*2); ctx.stroke();
+              ctx.setLineDash([]);
+              
+              // Draw Danger Zone
+              ctx.beginPath();
+              ctx.arc(arena.x, arena.y, radius, 0, Math.PI*2);
+              ctx.arc(arena.x, arena.y, safeR, 0, Math.PI*2, true);
+              ctx.fillStyle = 'rgba(255, 0, 0, 0.2)';
+              ctx.fill();
+          } else {
+              ctx.strokeStyle = arena.id === currentArena ? '#00f2ff' : '#475569';
+              ctx.lineWidth = 10;
+              ctx.shadowColor = arena.id === currentArena ? '#00f2ff' : 'transparent';
+              ctx.shadowBlur = arena.id === currentArena ? 20 : 0;
+              ctx.beginPath(); ctx.arc(arena.x, arena.y, ARENA_RADIUS, 0, Math.PI*2); ctx.stroke();
+              ctx.shadowBlur = 0;
+          }
 
           ctx.fillStyle = 'rgba(255,255,255,0.1)';
           ctx.font = '900 100px monospace';
@@ -2211,7 +2549,24 @@ const TankBattleView: React.FC<TankBattleViewProps> = ({ onBack, onSokoban }) =>
           </div>
       )}
 
-      {/* Arena Scoreboard UI */}
+      {/* Sumo Arena HUD */}
+      {currentArena === SUMO_ARENA_ID && (
+          <div className="absolute top-4 left-1/2 -translate-x-1/2 z-30 flex flex-col items-center animate-slide-down">
+             <div className="bg-black/80 border border-cyan-500/50 backdrop-blur-md rounded-xl px-10 py-4 shadow-lg flex items-center gap-10">
+                <div className="flex flex-col items-center">
+                    <span className="text-[10px] text-cyan-400 font-black uppercase tracking-widest">ALIVE</span>
+                    <span className="text-4xl font-black text-white">{sumoUI.playersAlive} <span className="text-gray-500 text-lg">/ 32</span></span>
+                </div>
+                <div className="flex flex-col items-center">
+                    <span className="text-[10px] text-red-500 font-black uppercase tracking-widest">ZONE</span>
+                    <span className="text-xl font-mono text-white">SHRINKING</span>
+                </div>
+             </div>
+             <div className="mt-2 text-[10px] text-gray-400 bg-black/40 px-3 py-1 rounded">GOAL: TOP 16</div>
+          </div>
+      )}
+
+      {/* Arena Scoreboard UI (Only for Core Arena) */}
       {currentArena === OUTER_COUNT && (
         <div className="absolute top-4 left-1/2 -translate-x-1/2 z-30 flex flex-col items-center animate-slide-down">
           <div className="bg-[#0f172a]/90 border border-cyan-500/30 backdrop-blur-md rounded-b-xl px-8 py-3 shadow-[0_10px_30px_rgba(0,0,0,0.5)] flex items-center gap-8">
@@ -2582,7 +2937,7 @@ const TankBattleView: React.FC<TankBattleViewProps> = ({ onBack, onSokoban }) =>
         <div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center z-50 p-10 text-center animate-fade-in backdrop-blur-sm">
           <div className="text-amber-500 text-[16px] font-black uppercase tracking-[1.5em] mb-6 border-b border-amber-500/30 pb-4">CRITICAL FAILURE</div>
           <h2 className="text-9xl font-black italic text-white mb-10 tracking-tighter uppercase opacity-90">
-            WRECKED
+            {sumoUI.result === 'ELIMINATED' ? 'ELIMINATED' : 'WRECKED'}
           </h2>
           <button onClick={() => initLevel(false)} className="px-16 py-6 bg-amber-500 text-black font-black uppercase tracking-[0.2em] hover:bg-amber-400 hover:scale-105 transition-all text-xl shadow-[0_0_50px_rgba(245,158,11,0.5)]">
             SYSTEM REBOOT
